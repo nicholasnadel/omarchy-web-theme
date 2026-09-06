@@ -1,0 +1,16 @@
+# Private signing material and local secrets
+*.pem
+*.key
+*.p12
+*.pfx
+.env
+.env.*
+
+# Local packages, reports, and generated archives
+/node_modules/
+/coverage/
+/.cache/
+*.crx
+*.zip
+*.log
+.DS_Store

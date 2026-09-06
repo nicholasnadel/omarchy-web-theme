@@ -1,0 +1,644 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Omarchy Theme Sync | live palette</title>
+<style>
+  /* Every Omarchy variable is aliased once, with a fallback, so the page still
+     looks deliberate on a machine without the extension. Everything below styles
+     against the alias and never touches --omarchy-* directly. */
+  :root {
+    --bg:          var(--omarchy-background,        #101913);
+    --bg-dark:     var(--omarchy-dark-background,   #0c130e);
+    --bg-darker:   var(--omarchy-darker-background, #080d0a);
+    --bg-light:    var(--omarchy-lighter-background,#28302b);
+    --fg:          var(--omarchy-foreground,        #a1af9c);
+    --fg-dim:      var(--omarchy-dark-foreground,   #798375);
+    --fg-light:    var(--omarchy-light-foreground,  #afbbab);
+    --fg-bright:   var(--omarchy-bright-foreground, #b9c3b5);
+    --accent:      var(--omarchy-accent,            #4a9a68);
+    --selection:   var(--omarchy-selection,         #28302b);
+    --muted:       var(--omarchy-muted,             #4a684a);
+    --red:         var(--omarchy-red,               #c87a5c);
+    --yellow:      var(--omarchy-yellow,            #c4a64e);
+    --orange:      var(--omarchy-orange,            #d08e74);
+    --green:       var(--omarchy-green,             #6aae52);
+    --cyan:        var(--omarchy-cyan,              #52987a);
+    --blue:        var(--omarchy-blue,              #4a9a68);
+    --magenta:     var(--omarchy-magenta,           #8a7856);
+    --brown:       var(--omarchy-brown,             #7d5546);
+    --b-red:       var(--omarchy-bright-red,        #d89268);
+    --b-green:     var(--omarchy-bright-green,      #82c45a);
+    --b-cyan:      var(--omarchy-bright-cyan,       #48aa82);
+
+    --gap: 10px;
+    --radius: 10px;
+    --mono: "CaskaydiaMono Nerd Font", "JetBrainsMono Nerd Font", "Fira Code",
+            ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: var(--gap);
+    min-height: 100vh;
+    background: var(--bg-darker);
+    color: var(--fg);
+    font: 13px/1.6 var(--mono);
+    /* Retint smoothly on a theme switch instead of snapping. */
+    transition: background-color .35s ease, color .35s ease;
+  }
+
+  /* ---- bar ------------------------------------------------------------- */
+  .bar {
+    display: flex; align-items: center; gap: 14px;
+    padding: 8px 14px; margin-bottom: var(--gap);
+    background: var(--bg-dark); border-radius: var(--radius);
+    border: 1px solid var(--bg-light);
+  }
+  .ws { display: flex; gap: 6px; }
+  .ws span {
+    width: 24px; height: 24px; display: grid; place-items: center;
+    border-radius: 6px; color: var(--fg-dim); background: var(--bg);
+    font-size: 11px;
+  }
+  .ws span.on { background: var(--accent); color: var(--bg-darker); font-weight: 700; }
+  .bar .spacer { flex: 1; }
+  .pill {
+    padding: 3px 10px; border-radius: 999px; font-size: 11px;
+    background: var(--bg-light); color: var(--fg-light);
+    border: 1px solid var(--bg-light);
+  }
+  #themeName { color: var(--accent); font-weight: 700; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--fg-dim); }
+  .dot.live { background: var(--b-green); box-shadow: 0 0 0 3px color-mix(in srgb, var(--b-green) 25%, transparent); }
+  .dot.off  { background: var(--red); }
+
+  /* ---- tiling grid ----------------------------------------------------- */
+  .tiles { display: flex; gap: var(--gap); align-items: flex-start; }
+  .col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--gap); }
+  @media (max-width: 860px) { .tiles { flex-direction: column; } }
+
+  .win {
+    background: var(--bg); border: 1px solid var(--bg-light);
+    border-radius: var(--radius); overflow: hidden;
+    display: flex; flex-direction: column; min-width: 0;
+    transition: border-color .35s ease, background-color .35s ease;
+  }
+  /* The focused window gets the accent ring, the way a tiling WM marks focus. */
+  .win.focus { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .win > header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 12px; font-size: 11px; letter-spacing: .06em;
+    text-transform: uppercase; color: var(--fg-dim);
+    background: var(--bg-dark); border-bottom: 1px solid var(--bg-light);
+  }
+  .win > header b { color: var(--fg-light); font-weight: 600; text-transform: none; letter-spacing: 0; }
+  .win .body { padding: 14px; flex: 1; min-width: 0; overflow-x: auto; }
+
+  /* ---- terminal -------------------------------------------------------- */
+  .term { white-space: pre-wrap; word-break: break-word; }
+  .term .ps { color: var(--b-green); }
+  .term .path { color: var(--cyan); }
+  .term .cmd { color: var(--fg-bright); }
+  .term .ok { color: var(--green); }
+  .term .warn { color: var(--yellow); }
+  .term .dim { color: var(--fg-dim); }
+  .caret {
+    display: inline-block; width: 8px; height: 15px; vertical-align: -3px;
+    background: var(--accent); animation: blink 1.1s steps(1) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* ---- code ------------------------------------------------------------ */
+  pre { margin: 0; white-space: pre; }
+  .kw { color: var(--magenta); }
+  .fn { color: var(--blue); }
+  .str { color: var(--b-green); }
+  .num { color: var(--orange); }
+  .com { color: var(--fg-dim); font-style: italic; }
+  .prop { color: var(--cyan); }
+
+  /* ---- swatches -------------------------------------------------------- */
+  #swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 8px; }
+  .sw { border: 1px solid var(--bg-light); border-radius: 8px; overflow: hidden; background: var(--bg-dark); }
+  .sw .chip { height: 40px; transition: background-color .35s ease; }
+  .sw .meta { padding: 5px 8px; font-size: 10.5px; line-height: 1.45; }
+  .sw .k { color: var(--fg-light); display: block; overflow: hidden; text-overflow: ellipsis; }
+  .sw .v { color: var(--fg-dim); }
+
+  /* ---- components ------------------------------------------------------ */
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
+  .btn {
+    padding: 6px 14px; border-radius: 7px; border: 1px solid var(--accent);
+    background: var(--accent); color: var(--bg-darker); font: 600 12px var(--mono);
+    cursor: pointer; transition: background-color .2s ease, color .2s ease;
+  }
+  .btn.ghost { background: transparent; color: var(--accent); }
+  .btn.ghost:hover { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+  .tag { padding: 2px 9px; border-radius: 5px; font-size: 11px; }
+  .tag.a { background: color-mix(in srgb, var(--b-cyan) 20%, transparent); color: var(--b-cyan); }
+  .tag.b { background: color-mix(in srgb, var(--yellow) 20%, transparent); color: var(--yellow); }
+  .tag.c { background: color-mix(in srgb, var(--red) 20%, transparent); color: var(--red); }
+
+  .meter { height: 6px; border-radius: 3px; background: var(--bg-light); overflow: hidden; margin: 5px 0 12px; }
+  .meter i { display: block; height: 100%; border-radius: 3px; transition: background-color .35s ease; }
+  .lbl { display: flex; justify-content: space-between; font-size: 11px; color: var(--fg-dim); }
+
+  .diff { border-radius: 7px; overflow: hidden; border: 1px solid var(--bg-light); }
+  .diff div { padding: 2px 10px; }
+  .diff .add { background: color-mix(in srgb, var(--green) 16%, transparent); color: var(--b-green); }
+  .diff .del { background: color-mix(in srgb, var(--red) 16%, transparent); color: var(--b-red); }
+  .diff .ctx { color: var(--fg-dim); }
+
+  /* ---- theme picker --------------------------------------------------- */
+  #themeButtons { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .tbtn {
+    padding: 5px 11px; border-radius: 6px; font: 12px var(--mono); cursor: pointer;
+    background: var(--bg-dark); color: var(--fg-light);
+    border: 1px solid var(--bg-light);
+    transition: border-color .2s ease, color .2s ease, background-color .2s ease;
+  }
+  .tbtn:hover { border-color: var(--accent); color: var(--accent); }
+  .tbtn:disabled { opacity: .5; cursor: default; }
+  .tbtn.current { border-color: var(--accent); background: var(--accent); color: var(--bg-darker); font-weight: 700; }
+  #themeStatus { font-size: 11.5px; color: var(--fg-dim); min-height: 1.6em; }
+  #themeStatus.ok { color: var(--b-green); }
+  #themeStatus.err { color: var(--b-red); }
+
+  /* ---- custom theme gallery ------------------------------------------- */
+  #gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+  .card {
+    border: 1px solid var(--bg-light); border-radius: 9px; overflow: hidden;
+    background: var(--bg-dark); cursor: pointer; text-align: left; padding: 0;
+    font: inherit; color: inherit; display: flex; flex-direction: column;
+    transition: border-color .2s ease, transform .12s ease;
+  }
+  .card:hover:not(:disabled) { border-color: var(--accent); transform: translateY(-2px); }
+  .card:disabled { cursor: default; opacity: .55; }
+  .card .shot { aspect-ratio: 16 / 9; background: var(--bg-light) center/cover no-repeat; }
+  .card .info { padding: 7px 9px 9px; }
+  .card .nm {
+    font-size: 11.5px; color: var(--fg-light); line-height: 1.35;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .card .tone { font-size: 10px; color: var(--fg-dim); margin-top: 2px; }
+  .card .strip { display: flex; height: 7px; margin-top: 6px; border-radius: 3px; overflow: hidden; }
+  .card .strip i { flex: 1; }
+  .card .apply {
+    margin-top: 8px; padding: 4px 0; border-radius: 5px; text-align: center;
+    font-size: 11px; font-weight: 700;
+    background: var(--accent); color: var(--bg-darker);
+  }
+  .card:disabled .apply { background: var(--bg-light); color: var(--fg-dim); }
+  #galleryStatus { font-size: 11.5px; color: var(--fg-dim); margin-bottom: 10px; min-height: 1.6em; }
+  #galleryStatus.ok { color: var(--b-green); }
+  #galleryStatus.err { color: var(--b-red); }
+
+  /* ---- change flash ---------------------------------------------------- */
+  #flash {
+    position: fixed; right: 16px; bottom: 16px; z-index: 10;
+    padding: 9px 16px; border-radius: 8px; font-size: 12px;
+    background: var(--accent); color: var(--bg-darker); font-weight: 700;
+    opacity: 0; transform: translateY(8px); pointer-events: none;
+    transition: opacity .25s ease, transform .25s ease;
+  }
+  #flash.show { opacity: 1; transform: none; }
+
+  #notice {
+    display: none; margin-bottom: var(--gap); padding: 11px 14px;
+    border-radius: var(--radius); font-size: 12px;
+    background: color-mix(in srgb, var(--yellow) 14%, transparent);
+    border: 1px solid var(--yellow); color: var(--yellow);
+  }
+  #notice.show { display: block; }
+  #notice code { color: var(--fg-bright); }
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <div class="ws"><span class="on">1</span><span>2</span><span>3</span><span>4</span></div>
+  <div class="spacer"></div>
+  <span class="pill">theme <b id="themeName">-</b></span>
+  <span class="pill" id="modePill">mode -</span>
+  <span class="pill"><span class="dot" id="statusDot"></span> <span id="statusText">checking</span></span>
+</div>
+
+<div id="notice">
+  No palette detected. Install with <code>./install.sh</code>, restart the browser, and serve
+  the demo from the project root:
+  <code>python3 -m http.server 8080 --bind 127.0.0.1 --directory demo</code>.
+  Open <code>http://localhost:8080</code>. Localhost writes are disabled by default.
+  To opt in, explicitly allow that exact origin in <code>THEME_WRITE_ORIGINS</code> in
+  <code>extension/background.js</code>, reload the extension, then reload this page.
+</div>
+
+<div class="tiles">
+<div class="col">
+
+  <section class="win focus">
+    <header>terminal <b>~/omarchy</b></header>
+    <div class="body term"><span class="ps">omarchy</span> <span class="path">~</span> <span class="cmd">omarchy-theme-set "Tokyo Night"</span>
+<span class="dim">  staging theme ...............</span> <span class="ok">ok</span>
+<span class="dim">  writing colors.toml .........</span> <span class="ok">ok</span>
+<span class="dim">  notifying browser host ......</span> <span class="ok">ok</span>
+<span class="warn">  4 tabs retinted, 0 reloads</span>
+
+<span class="ps">omarchy</span> <span class="path">~</span> <span class="caret"></span></div>
+  </section>
+
+  <section class="win">
+    <header>palette <b><span id="count">0</span> colors</b></header>
+    <div class="body"><div id="swatches"></div></div>
+  </section>
+
+</div>
+<div class="col">
+
+  <section class="win">
+    <header>themes <b>click to apply</b></header>
+    <div class="body">
+      <div id="themeButtons"></div>
+      <div id="themeStatus">Ready.</div>
+    </div>
+  </section>
+
+  <section class="win">
+    <header>editor <b>theme.js</b></header>
+    <div class="body"><pre><span class="com">// Read the palette at any time, no waiting.</span>
+<span class="kw">const</span> accent = window.omarchy.<span class="fn">color</span>(<span class="str">'accent'</span>);
+<span class="kw">const</span> all    = window.omarchy.<span class="fn">colors</span>();
+
+<span class="com">// Fires on first paint and on every switch.</span>
+window.omarchy.<span class="fn">onChange</span>((c) <span class="kw">=&gt;</span> {
+  canvas.<span class="prop">style</span>.<span class="prop">background</span> = c.<span class="prop">background</span>;
+  chart.<span class="fn">recolor</span>([c.<span class="prop">blue</span>, c.<span class="prop">cyan</span>, c.<span class="prop">magenta</span>]);
+});
+
+<span class="com">// Or skip JS entirely.</span>
+<span class="com">//   color: var(--omarchy-accent, </span><span class="num">#4a9a68</span><span class="com">);</span></pre></div>
+  </section>
+
+  <section class="win">
+    <header>components</header>
+    <div class="body">
+      <div class="row">
+        <button class="btn">Apply theme</button>
+        <button class="btn ghost">Preview</button>
+        <span class="tag a">passing</span>
+        <span class="tag b">3 pending</span>
+        <span class="tag c">1 failed</span>
+      </div>
+
+      <div class="lbl"><span>cpu</span><span>34%</span></div>
+      <div class="meter"><i style="width:34%;background:var(--b-cyan)"></i></div>
+      <div class="lbl"><span>memory</span><span>61%</span></div>
+      <div class="meter"><i style="width:61%;background:var(--yellow)"></i></div>
+      <div class="lbl"><span>disk</span><span>88%</span></div>
+      <div class="meter"><i style="width:88%;background:var(--b-red)"></i></div>
+
+      <div class="diff">
+        <div class="ctx">  .button {</div>
+        <div class="del">- background: #4a9a68;</div>
+        <div class="add">+ background: var(--omarchy-accent);</div>
+        <div class="ctx">  }</div>
+      </div>
+    </div>
+  </section>
+
+</div>
+</div>
+
+<section class="win" style="margin-top:var(--gap)">
+  <header>custom themes <b>installed from a palette + wallpaper</b></header>
+  <div class="body">
+    <div id="galleryStatus">Loading examples ...</div>
+    <div id="gallery"></div>
+  </div>
+</section>
+
+<div id="flash">palette updated</div>
+
+<script>
+  const KNOWN = ['accent','selection','muted','background','dark_background','darker_background',
+    'lighter_background','foreground','dark_foreground','light_foreground','bright_foreground',
+    'red','yellow','orange','green','cyan','blue','magenta','brown','bright_red','bright_yellow',
+    'bright_green','bright_cyan','bright_blue','bright_magenta'];
+
+  const $ = (id) => document.getElementById(id);
+  let flashTimer = null;
+
+  // Chrome normalises inline custom properties alphabetically, which splits
+  // backgrounds from foregrounds and scatters the ANSI ramp. KNOWN is colors.toml
+  // order, so sorting back to it restores the grouping the theme author intended.
+  function inThemeOrder(keys) {
+    return keys.slice().sort((a, b) => {
+      const ia = KNOWN.indexOf(a), ib = KNOWN.indexOf(b);
+      return (ia < 0 ? 999 : ia) - (ib < 0 ? 999 : ib) || a.localeCompare(b);
+    });
+  }
+
+  function paintSwatches(colors) {
+    const found = Object.keys(colors);
+    const keys = found.length ? inThemeOrder(found) : KNOWN;
+    $('count').textContent = keys.length;
+    const host = $('swatches');
+    host.replaceChildren();
+
+    for (const k of keys) {
+      const sw = document.createElement('div');
+      sw.className = 'sw';
+      const chip = document.createElement('div');
+      chip.className = 'chip';
+      // Drive the chip off the live variable so it retints even between repaints,
+      // and fall back to the alias layer when the extension is absent.
+      const cssVar = '--omarchy-' + k.replace(/_/g, '-');
+      chip.style.backgroundColor = `var(${CSS.escape(cssVar)}, var(--bg-light))`;
+
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      const key = document.createElement('span');
+      key.className = 'k';
+      key.textContent = k;
+      const value = document.createElement('span');
+      value.className = 'v';
+      value.textContent = colors[k] || 'unset';
+      meta.append(key, value);
+      sw.append(chip, meta);
+      host.appendChild(sw);
+    }
+  }
+
+  function setStatus(state, text) {
+    $('statusDot').className = 'dot' + (state ? ' ' + state : '');
+    $('statusText').textContent = text;
+  }
+
+  function flash() {
+    const el = $('flash');
+    el.classList.add('show');
+    clearTimeout(flashTimer);
+    flashTimer = setTimeout(() => el.classList.remove('show'), 1400);
+  }
+
+  function sync(announce) {
+    const api = window.omarchy;
+    const colors = api ? api.colors() : {};
+    const live = Object.keys(colors).length > 0;
+
+    $('themeName').textContent = (api && api.theme) || 'default';
+    $('modePill').textContent = 'mode ' + ((api && api.mode) || '-');
+    paintSwatches(colors);
+
+    if (live) setStatus('live', 'live');
+    else if (api) setStatus('', 'waiting for host');
+    else setStatus('off', 'no extension');
+
+    $('notice').classList.toggle('show', !live);
+    if (announce && live) {
+      flash();
+      markCurrent();
+      const active = (api && api.theme) || 'unknown';
+      if (awaitingApply) {
+        setThemeStatus('Applied ' + awaitingApply + '.', 'ok');
+        // Record the theme we asked for, not whatever this push carried: the
+        // name can lag the colours by one push, and using it here would let the
+        // follow-up overwrite the confirmation.
+        statusTheme = slug(awaitingApply);
+        awaitingApply = null;
+      } else if (active !== statusTheme) {
+        // Changed from a terminal, or this is the first palette after load.
+        // Keep a permission explanation on screen; it outranks a status ping.
+        const blocked = document.querySelector('.tbtn[disabled]');
+        if (!blocked) setThemeStatus('Theme is ' + active + '.', '');
+        statusTheme = active;
+      }
+    }
+  }
+
+  // A spread of installed themes that look clearly different from each other,
+  // so a switch is obvious at a glance.
+  const DEMO_THEMES = ['Tokyo Night', 'Gruvbox', 'Catppuccin', 'Nord',
+                       'Rose Pine', 'Everforest', 'Matte Black', 'Cliamp'];
+
+  const slug = (name) => name.toLowerCase().replace(/ /g, '-');
+
+  // Only a switch this page asked for should be reported as "applied". A palette
+  // push also arrives on first load and whenever the theme is changed from a
+  // terminal, and claiming credit for those would be a lie.
+  let awaitingApply = null;
+  // omarchy-theme-set writes more than once per switch (the theme swap, then
+  // background and post-theme hooks), so several palette pushes arrive for one
+  // change. Tracking what the status already reflects keeps a later duplicate
+  // from overwriting the "Applied" confirmation the user just earned.
+  let statusTheme = null;
+
+  function markCurrent() {
+    const active = (window.omarchy && window.omarchy.theme) || '';
+    for (const btn of document.querySelectorAll('.tbtn')) {
+      btn.classList.toggle('current', slug(btn.dataset.theme) === active);
+    }
+  }
+
+  function setThemeStatus(text, cls) {
+    const el = $('themeStatus');
+    el.textContent = text;
+    el.className = cls || '';
+  }
+
+  // Origins that may not write get the picker rendered but inert, with the
+  // reason shown, rather than buttons that look live and fail on click.
+  async function applyWritePermission() {
+    if (!window.omarchy || !window.omarchy.canSetTheme) return;
+
+    const permission = await window.omarchy.canSetTheme();
+    if (permission.allowed) return;
+
+    for (const btn of document.querySelectorAll('.tbtn')) btn.disabled = true;
+
+    if (permission.error) {
+      setThemeStatus('Could not reach the extension: ' + permission.error, 'err');
+    } else if (location.protocol === 'file:') {
+      // Every local file shares the one opaque file:// origin, so it cannot be
+      // allowlisted the way a single localhost port can.
+      setThemeStatus(
+        'Read-only over file://. From the project root, run: ' +
+          'python3 -m http.server 8080 --bind 127.0.0.1 --directory demo' +
+          '. Localhost writes remain disabled unless you explicitly allow http://localhost:8080 ' +
+          'in THEME_WRITE_ORIGINS in extension/background.js, reload the extension, then reload this page.',
+        'err'
+      );
+    } else {
+      setThemeStatus(location.origin + ' is not allowed to set themes. ' +
+        'Localhost writes are disabled by default. To opt in, explicitly allow this exact origin ' +
+        '(including its port) in THEME_WRITE_ORIGINS in extension/background.js, reload the extension, then reload this page.', 'err');
+    }
+  }
+
+  function buildPicker() {
+    const host = $('themeButtons');
+    host.replaceChildren();
+
+    for (const name of DEMO_THEMES) {
+      const btn = document.createElement('button');
+      btn.className = 'tbtn';
+      btn.textContent = name;
+      btn.dataset.theme = name;
+
+      btn.addEventListener('click', async () => {
+        if (!window.omarchy || !window.omarchy.setTheme) {
+          setThemeStatus('Extension not available.', 'err');
+          return;
+        }
+        setThemeStatus('Applying ' + name + ' ...', '');
+        awaitingApply = name;
+        const result = await window.omarchy.setTheme(name);
+        if (result.ok) {
+          // The palette that follows is the real confirmation; it arrives on its
+          // own through onChange once omarchy-theme-set has written colors.toml.
+          setThemeStatus('Requested ' + name + '. Waiting for the palette ...', 'ok');
+        } else {
+          awaitingApply = null;
+          setThemeStatus('Failed: ' + result.error, 'err');
+        }
+      });
+
+      host.appendChild(btn);
+    }
+    markCurrent();
+  }
+
+  buildPicker();
+  applyWritePermission();
+  sync(false);
+
+  // ---- custom theme gallery ------------------------------------------------
+  function setGalleryStatus(text, cls) {
+    const el = $('galleryStatus');
+    el.textContent = text;
+    el.className = cls || '';
+  }
+
+  // A few representative swatches rather than all 46, so the strip reads at a
+  // glance and still says something about the palette.
+  const STRIP_KEYS = ['background', 'accent', 'red', 'yellow', 'green', 'cyan', 'blue', 'magenta', 'foreground'];
+
+  async function buildGallery() {
+    let themes;
+    try {
+      themes = await (await fetch('themes.json')).json();
+    } catch (error) {
+      setGalleryStatus('Could not load themes.json.', 'err');
+      return;
+    }
+
+    const host = $('gallery');
+    host.replaceChildren();
+
+    for (const theme of themes) {
+      const card = document.createElement('button');
+      card.className = 'card';
+      card.type = 'button';
+
+      const shot = document.createElement('div');
+      shot.className = 'shot';
+      shot.style.backgroundImage = `url(${JSON.stringify(String(theme.thumb))})`;
+      const info = document.createElement('div');
+      info.className = 'info';
+      const name = document.createElement('div');
+      name.className = 'nm';
+      name.textContent = theme.name;
+      const tone = document.createElement('div');
+      tone.className = 'tone';
+      tone.textContent = theme.tone + ' / ' + theme.color;
+      const strip = document.createElement('div');
+      strip.className = 'strip';
+      for (const k of STRIP_KEYS) {
+        if (!theme.colors[k]) continue;
+        const swatch = document.createElement('i');
+        swatch.style.backgroundColor = theme.colors[k];
+        strip.appendChild(swatch);
+      }
+      const apply = document.createElement('div');
+      apply.className = 'apply';
+      apply.textContent = 'Install and apply';
+      let installed = false;
+      info.append(name, tone, strip, apply);
+      card.append(shot, info);
+
+      card.addEventListener('click', async () => {
+        if (!window.omarchy || !window.omarchy.installTheme || !window.omarchy.setTheme) {
+          setGalleryStatus('Extension not available.', 'err');
+          return;
+        }
+        const applying = installed;
+        setGalleryStatus((applying ? 'Applying ' : 'Downloading wallpaper and installing ') + theme.name + ' ...', '');
+        for (const c of document.querySelectorAll('.card')) c.disabled = true;
+
+        // The palette push that follows is the confirmation, same as a switch.
+        awaitingApply = theme.name;
+        const result = applying
+          ? await window.omarchy.setTheme(theme.name)
+          : await window.omarchy.installTheme({
+              name: theme.name,
+              colors: theme.colors,
+              backgroundUrl: theme.background,
+            });
+
+        for (const c of document.querySelectorAll('.card')) c.disabled = false;
+        if (result.ok || result.error === 'theme already exists; use setTheme') {
+          installed = true;
+          apply.textContent = 'Apply existing';
+        }
+        if (result.ok) {
+          setGalleryStatus((applying ? 'Requested ' : 'Installed ') + result.name + (result.error ? ' (' + result.error + ')' : ''), 'ok');
+        } else {
+          awaitingApply = null;
+          setGalleryStatus('Failed: ' + result.error, 'err');
+        }
+      });
+
+      host.appendChild(card);
+    }
+
+    const permission = window.omarchy && window.omarchy.canSetTheme
+      ? await window.omarchy.canSetTheme()
+      : { allowed: false, error: 'extension not available' };
+
+    if (!permission.allowed) {
+      for (const c of document.querySelectorAll('.card')) c.disabled = true;
+
+      let why;
+      if (permission.error) {
+        // Never answered. Blaming the origin here would point at the allowlist
+        // when the actual fix is reloading the extension.
+        why = 'Could not reach the extension: ' + permission.error;
+      } else if (location.protocol === 'file:') {
+        why = 'Read-only over file://. From the project root, run: ' +
+          'python3 -m http.server 8080 --bind 127.0.0.1 --directory demo' +
+          '. Localhost writes remain disabled unless you explicitly allow http://localhost:8080 ' +
+          'in THEME_WRITE_ORIGINS in extension/background.js, reload the extension, then reload this page.';
+      } else {
+        why = location.origin + ' is not allowed to install themes. ' +
+          'Localhost writes are disabled by default. To opt in, explicitly allow this exact origin ' +
+          '(including its port) in THEME_WRITE_ORIGINS in extension/background.js, reload the extension, then reload this page.';
+      }
+      setGalleryStatus(why, 'err');
+    } else {
+      setGalleryStatus(themes.length + ' examples. Click one to download its wallpaper and install it.', '');
+    }
+  }
+
+  buildGallery();
+
+  if (window.omarchy) {
+    // Fires on the first application too, which is how the page fills in on a
+    // cold profile where the palette lands after load.
+    window.omarchy.onChange(() => sync(true));
+  }
+</script>
+</body>
+</html>
