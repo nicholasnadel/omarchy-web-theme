@@ -216,3 +216,7 @@ previously installed or the helper's rate-limit state.
 
 [MIT](LICENSE). Externally hosted wallpapers are not covered by this license;
 check the rights for those images before reusing them.
+
+The extension icon uses the square logo from the
+[official Omarchy brand assets](https://omarchy.org/brand). The logo is not covered
+by this project's MIT license.
