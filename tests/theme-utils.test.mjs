@@ -40,6 +40,14 @@ test('maps neutral page surfaces into the exact Omarchy surface roles', () => {
   assert.equal(utils.transformBackground('rgba(255, 255, 255, 0)', miasma), null);
 });
 
+test('preserves the narrow surface hierarchy used by native dark web apps', () => {
+  assert.equal(utils.transformBackground('#0d0d0d', miasma, 'dark'), '#121212');
+  assert.equal(utils.transformBackground('#171717', miasma, 'dark'), '#191919');
+  assert.equal(utils.transformBackground('#212121', miasma, 'dark'), '#222222');
+  assert.equal(utils.transformBackground('#2f2f2f', miasma, 'dark'), '#2c2c2c');
+  assert.equal(utils.transformBackground('#323232', miasma, 'dark'), '#2c2c2c');
+});
+
 test('maps links, neutral text, semantic colors, and borders into the palette', () => {
   assert.equal(utils.transformText('rgb(20, 20, 20)', miasma), '#c2c2b0');
   assert.equal(utils.transformText('rgb(194, 194, 176)', miasma), '#c2c2b0');

@@ -124,13 +124,22 @@ globalThis.OmarchyThemeUtils = (() => {
     return palette.named.magenta;
   }
 
-  function transformBackground(source, palette) {
+  function transformBackground(source, palette, sourceMode = 'light') {
     const parsed = parseColor(source);
     if (!parsed || parsed.a < 0.04) return null;
     const light = luminance(parsed);
     const vivid = chroma(parsed) > 0.17;
     let target;
-    if (palette.mode === 'dark') {
+    if (palette.mode === 'dark' && sourceMode === 'dark') {
+      // Native dark interfaces keep most of their surfaces in a very narrow
+      // luminance range. Light-page thresholds collapse shades such as
+      // #171717, #212121 and #2f2f2f into one color, erasing the hierarchy in
+      // apps such as ChatGPT. Expand that range across the Omarchy surfaces.
+      if (light < 0.006) target = palette.darker;
+      else if (light < 0.012) target = palette.dark;
+      else if (light < 0.022) target = palette.background;
+      else target = palette.lighter;
+    } else if (palette.mode === 'dark') {
       if (light > 0.8) target = palette.background;
       else if (light > 0.35) target = palette.lighter;
       else if (light > 0.08) target = palette.dark;

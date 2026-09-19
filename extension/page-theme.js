@@ -14,6 +14,7 @@
   const host = location.hostname || location.protocol;
   let settings = { pageThemeEnabled: true, disabledHosts: [] };
   let palette = null;
+  let sourceMode = 'light';
   let observer = null;
   let generation = 0;
 
@@ -32,6 +33,21 @@
 
   function isEnabled() {
     return settings.pageThemeEnabled !== false && !settings.disabledHosts.includes(host);
+  }
+
+  function detectSourceMode() {
+    const surfaces = [document.body, document.documentElement].filter(Boolean);
+    for (const element of surfaces) {
+      const color = utils.parseColor(getComputedStyle(element).backgroundColor);
+      if (color && color.a >= 0.5) return utils.luminance(color) < 0.18 ? 'dark' : 'light';
+    }
+    // Transparent pages normally inherit the browser canvas. Their text still
+    // reveals whether they were authored for a light or dark canvas.
+    for (const element of surfaces) {
+      const color = utils.parseColor(getComputedStyle(element).color);
+      if (color && color.a >= 0.5) return utils.luminance(color) > 0.55 ? 'dark' : 'light';
+    }
+    return 'light';
   }
 
   function clearElement(element) {
@@ -56,7 +72,7 @@
     const style = getComputedStyle(element);
     const backgroundImage = style.backgroundImage;
     const background = backgroundImage === 'none'
-      ? utils.transformBackground(style.backgroundColor, palette)
+      ? utils.transformBackground(style.backgroundColor, palette, sourceMode)
       : null;
     const role = element.matches('a, [role="link"]') ? 'link' : '';
     const parentForeground = element.parentElement?.style.getPropertyValue('--omarchy-auto-fg').trim();
@@ -136,6 +152,7 @@
       clearElement(element);
     }
     palette = nextPalette;
+    sourceMode = detectSourceMode();
     generation++;
     const run = generation;
     document.documentElement.setAttribute(ROOT_ATTRIBUTE, palette.mode);
@@ -162,6 +179,11 @@
   }
 
   document.addEventListener('omarchythemechange', start);
+  if (document.readyState === 'loading') {
+    // document_start can run before <body> exists. Re-detect once authored
+    // page styles are available so dark single-page apps get the right scale.
+    document.addEventListener('DOMContentLoaded', start, { once: true });
+  }
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local' && (changes.pageThemeEnabled || changes.disabledHosts)) refreshSettings();
   });
