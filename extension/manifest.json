@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Omarchy Web Theme",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Theme browser pages with your live Omarchy palette.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAq+dVUGv1qYr7foaO13NDQ2cE9qeucF0eWxUgTbbL0qAcDhkNdb2PiQawsGq/lAaZ9xrhYFr6PdnBpUjhM8GD69ujP11pmHP6e9yulVbmOHjfyYJrh2r8JD345tU+aZtWv8MNdyr8z/Q8J70NX75IiVljSatXM8z8nSg4gS34xrcu7TEA2n0mMr2MqricOwf9SqAfwzeZ55JKdq6bVupsAsrVrqtgaxion5/E3dSlIfWgbioIYiMuJhuaA6r7cWBfop3VCnerJ4YJKujNoDiMI19oce78MGCrIq4c7mbTDS/J6PoYcXQPdsWdk2bgLm+I8sMpmE9MwwOR14AtjA6aHQIDAQAB",
   "permissions": [
@@ -31,14 +31,23 @@
         "<all_urls>"
       ],
       "js": [
-        "content.js",
+        "content.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": true
+    },
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
         "theme-utils.js",
         "page-theme.js"
       ],
       "css": [
         "page-theme.css"
       ],
-      "run_at": "document_start",
+      "run_at": "document_idle",
       "all_frames": true
     },
     {

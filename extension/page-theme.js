@@ -15,7 +15,10 @@
   let settings = { pageThemeEnabled: true, disabledHosts: [] };
   let palette = null;
   let sourceMode = 'light';
+  let sourceBackgroundLuminance = null;
   let observer = null;
+  let mutationFlushScheduled = false;
+  const pendingRoots = new Set();
   let generation = 0;
 
   function readPalette() {
@@ -35,19 +38,27 @@
     return settings.pageThemeEnabled !== false && !settings.disabledHosts.includes(host);
   }
 
-  function detectSourceMode() {
+  function detectSourceAppearance() {
     const surfaces = [document.body, document.documentElement].filter(Boolean);
     for (const element of surfaces) {
       const color = utils.parseColor(getComputedStyle(element).backgroundColor);
-      if (color && color.a >= 0.5) return utils.luminance(color) < 0.18 ? 'dark' : 'light';
+      if (color && color.a >= 0.5) {
+        const backgroundLuminance = utils.luminance(color);
+        return {
+          mode: backgroundLuminance < 0.18 ? 'dark' : 'light',
+          backgroundLuminance,
+        };
+      }
     }
     // Transparent pages normally inherit the browser canvas. Their text still
     // reveals whether they were authored for a light or dark canvas.
     for (const element of surfaces) {
       const color = utils.parseColor(getComputedStyle(element).color);
-      if (color && color.a >= 0.5) return utils.luminance(color) > 0.55 ? 'dark' : 'light';
+      if (color && color.a >= 0.5) {
+        return { mode: utils.luminance(color) > 0.55 ? 'dark' : 'light', backgroundLuminance: null };
+      }
     }
-    return 'light';
+    return { mode: 'light', backgroundLuminance: null };
   }
 
   function clearElement(element) {
@@ -61,6 +72,8 @@
     generation++;
     observer?.disconnect();
     observer = null;
+    mutationFlushScheduled = false;
+    pendingRoots.clear();
     document.documentElement?.removeAttribute(ROOT_ATTRIBUTE);
     for (const element of document.querySelectorAll('[data-omarchy-auto-bg], [data-omarchy-auto-fg], [data-omarchy-auto-border]')) {
       clearElement(element);
@@ -72,7 +85,7 @@
     const style = getComputedStyle(element);
     const backgroundImage = style.backgroundImage;
     const background = backgroundImage === 'none'
-      ? utils.transformBackground(style.backgroundColor, palette, sourceMode)
+      ? utils.transformBackground(style.backgroundColor, palette, sourceMode, sourceBackgroundLuminance)
       : null;
     const role = element.matches('a, [role="link"]') ? 'link' : '';
     const parentForeground = element.parentElement?.style.getPropertyValue('--omarchy-auto-fg').trim();
@@ -136,6 +149,35 @@
     else setTimeout(() => callback(null), 0);
   }
 
+  function queueMutations(mutations, run) {
+    for (const mutation of mutations) {
+      for (const node of mutation.addedNodes) {
+        if (node instanceof Element) pendingRoots.add(node);
+      }
+    }
+    if (!pendingRoots.size || mutationFlushScheduled) return;
+    mutationFlushScheduled = true;
+    schedule(() => {
+      mutationFlushScheduled = false;
+      if (run !== generation || !isEnabled()) {
+        pendingRoots.clear();
+        return;
+      }
+      const elements = [];
+      const seen = new Set();
+      for (const root of pendingRoots) {
+        for (const element of collect(root)) {
+          if (!seen.has(element)) {
+            seen.add(element);
+            elements.push(element);
+          }
+        }
+      }
+      pendingRoots.clear();
+      process(elements, run);
+    });
+  }
+
   function start() {
     const nextPalette = readPalette();
     if (!nextPalette || !isEnabled() || !document.documentElement) {
@@ -147,25 +189,31 @@
     // mapper when the desktop theme changes or the cached palette is replayed.
     observer?.disconnect();
     observer = null;
+    mutationFlushScheduled = false;
+    pendingRoots.clear();
     document.documentElement.removeAttribute(ROOT_ATTRIBUTE);
     for (const element of document.querySelectorAll('[data-omarchy-auto-bg], [data-omarchy-auto-fg], [data-omarchy-auto-border]')) {
       clearElement(element);
     }
     palette = nextPalette;
-    sourceMode = detectSourceMode();
+    const sourceAppearance = detectSourceAppearance();
+    sourceMode = sourceAppearance.mode;
+    sourceBackgroundLuminance = sourceAppearance.backgroundLuminance;
     generation++;
     const run = generation;
     document.documentElement.setAttribute(ROOT_ATTRIBUTE, palette.mode);
     process(collect(document.documentElement), run);
 
-    observer = new MutationObserver((mutations) => {
-      const additions = [];
-      for (const mutation of mutations) {
-        for (const node of mutation.addedNodes) additions.push(...collect(node));
-      }
-      if (additions.length) process(additions, run);
-    });
+    observer = new MutationObserver((mutations) => queueMutations(mutations, run));
     observer.observe(document.documentElement, { childList: true, subtree: true });
+  }
+
+  function requestStart() {
+    // Styling during framework hydration can monopolize the main thread or
+    // make a single-page app observe our temporary overrides. Wait until the
+    // page has loaded, then yield once more to the browser's idle queue.
+    if (document.readyState !== 'complete') return;
+    schedule(start);
   }
 
   function refreshSettings() {
@@ -174,16 +222,12 @@
         pageThemeEnabled: stored.pageThemeEnabled !== false,
         disabledHosts: Array.isArray(stored.disabledHosts) ? stored.disabledHosts.filter((item) => typeof item === 'string') : [],
       };
-      start();
+      requestStart();
     }).catch(stop);
   }
 
-  document.addEventListener('omarchythemechange', start);
-  if (document.readyState === 'loading') {
-    // document_start can run before <body> exists. Re-detect once authored
-    // page styles are available so dark single-page apps get the right scale.
-    document.addEventListener('DOMContentLoaded', start, { once: true });
-  }
+  document.addEventListener('omarchythemechange', requestStart);
+  if (document.readyState !== 'complete') window.addEventListener('load', requestStart, { once: true });
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local' && (changes.pageThemeEnabled || changes.disabledHosts)) refreshSettings();
   });

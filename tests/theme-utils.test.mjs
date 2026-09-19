@@ -41,11 +41,18 @@ test('maps neutral page surfaces into the exact Omarchy surface roles', () => {
 });
 
 test('preserves the narrow surface hierarchy used by native dark web apps', () => {
-  assert.equal(utils.transformBackground('#0d0d0d', miasma, 'dark'), '#121212');
-  assert.equal(utils.transformBackground('#171717', miasma, 'dark'), '#191919');
-  assert.equal(utils.transformBackground('#212121', miasma, 'dark'), '#222222');
-  assert.equal(utils.transformBackground('#2f2f2f', miasma, 'dark'), '#2c2c2c');
-  assert.equal(utils.transformBackground('#323232', miasma, 'dark'), '#2c2c2c');
+  const chatGptCanvas = utils.luminance('#212121');
+  assert.equal(utils.transformBackground('#0d0d0d', miasma, 'dark', chatGptCanvas), '#121212');
+  assert.equal(utils.transformBackground('#171717', miasma, 'dark', chatGptCanvas), '#191919');
+  assert.equal(utils.transformBackground('#212121', miasma, 'dark', chatGptCanvas), '#222222');
+  assert.equal(utils.transformBackground('#2f2f2f', miasma, 'dark', chatGptCanvas), '#2c2c2c');
+  assert.equal(utils.transformBackground('#323232', miasma, 'dark', chatGptCanvas), '#2c2c2c');
+});
+
+test('maps a native black canvas to the primary theme background', () => {
+  const blackCanvas = utils.luminance('#000000');
+  assert.equal(utils.transformBackground('#000000', miasma, 'dark', blackCanvas), '#222222');
+  assert.equal(utils.transformBackground('#171717', miasma, 'dark', blackCanvas), '#2c2c2c');
 });
 
 test('maps links, neutral text, semantic colors, and borders into the palette', () => {

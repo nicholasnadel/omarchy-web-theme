@@ -9,6 +9,7 @@ import { runInNewContext } from 'node:vm';
 
 const project = fileURLToPath(new URL('../', import.meta.url));
 const demo = readFileSync(join(project, 'demo/index.html'), 'utf8');
+const manifest = JSON.parse(readFileSync(join(project, 'extension/manifest.json'), 'utf8'));
 const payload = "<img src=data:,not-an-image onerror='document.documentElement.dataset.reviewXss=1'>";
 const maliciousKey = 'z_bad), red); color:red;" >' + payload;
 
@@ -21,6 +22,15 @@ function extract(source, start, end) {
 
 const swatches = extract(demo, '  const KNOWN =', '  function setStatus(');
 const gallery = extract(demo, '  function setGalleryStatus(', '\n  buildGallery();');
+
+test('automatic page styling loads after the startup-critical palette bridge', () => {
+  const contentScript = manifest.content_scripts.find((entry) => entry.js.includes('content.js'));
+  const pageTheme = manifest.content_scripts.find((entry) => entry.js.includes('page-theme.js'));
+  assert.deepEqual(contentScript.js, ['content.js']);
+  assert.equal(contentScript.run_at, 'document_start');
+  assert.deepEqual(pageTheme.js, ['theme-utils.js', 'page-theme.js']);
+  assert.equal(pageTheme.run_at, 'document_idle');
+});
 
 function domFixture(themes = [], api = { canSetTheme: async () => ({ allowed: false }) }) {
   class Element {
@@ -251,6 +261,38 @@ test('installer loads the extension in Brave when a Brave profile exists', (t) =
 const chromium = ['chromium', 'chromium-browser', 'google-chrome'].flatMap((name) =>
   (process.env.PATH || '').split(delimiter).map((directory) => join(directory, name))).find((file) => {
   try { accessSync(file, constants.X_OK); return true; } catch { return false; }
+});
+
+test('automatic theming yields to dense app hydration until page load', {
+  skip: chromium ? false : 'Chromium is not installed',
+  timeout: 60000,
+}, (t) => {
+  const { root, env } = temporaryEnvironment(t);
+  const page = join(root, 'hydration.html');
+  const utilsUrl = pathToFileURL(join(project, 'extension/theme-utils.js')).href;
+  const themeUrl = pathToFileURL(join(project, 'extension/page-theme.js')).href;
+  writeFileSync(page, `<!doctype html>
+<html style="--omarchy-background:#111c18;--omarchy-dark-background:#0c1512;--omarchy-darker-background:#090f0d;--omarchy-lighter-background:#23372b;--omarchy-foreground:#c1c497;--omarchy-accent:#509475" data-omarchy-mode="dark">
+<head><meta charset="utf-8"><style>html,body{background:#212121;color:#eee}</style>
+<script>globalThis.chrome={storage:{local:{get:()=>Promise.resolve({pageThemeEnabled:true,disabledHosts:[]})},onChanged:{addListener(){}}}};</script>
+<script src="${utilsUrl}"></script><script src="${themeUrl}"></script></head>
+<body><main id="app"></main><script>
+const app=document.getElementById('app');
+for(let i=0;i<3000;i++){const node=document.createElement('div');node.textContent='row '+i;app.appendChild(node)}
+document.documentElement.dataset.hydration=document.documentElement.hasAttribute('data-omarchy-page-theme')?'themed-too-early':'completed-before-theme';
+window.addEventListener('load',()=>setTimeout(()=>{document.documentElement.dataset.themeState=document.documentElement.getAttribute('data-omarchy-page-theme')||'missing'},500));
+</script></body></html>`);
+  const result = spawnSync(chromium, [
+    '--headless', '--disable-extensions', '--disable-background-networking', '--disable-component-update',
+    '--disable-default-apps', '--disable-sync', '--disable-breakpad', '--no-first-run',
+    '--no-default-browser-check', '--no-proxy-server', '--allow-file-access-from-files', '--disable-gpu',
+    '--dump-dom', '--virtual-time-budget=2000', '--user-data-dir=' + join(root, 'browser-profile'),
+    pathToFileURL(page).href,
+  ], { cwd: root, env, encoding: 'utf8', timeout: 45000, maxBuffer: 8 * 1024 * 1024 });
+  assert.equal(result.status, 0, result.error?.message || result.stderr);
+  const htmlTag = result.stdout.match(/<html\b[^>]*>/)?.[0] || '';
+  assert.match(htmlTag, /data-hydration="completed-before-theme"/);
+  assert.match(htmlTag, /data-theme-state="dark"/);
 });
 
 test('Chromium keeps palette and gallery payloads inert through unchanged DOM helpers', {
