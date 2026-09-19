@@ -1,6 +1,6 @@
 # Security Notes
 
-Omarchy Theme Sync connects web pages to a local process. This document explains
+Omarchy Web Theme connects web pages to a local process. This document explains
 what each side can do and which limits are enforced.
 
 ## Reading and Writing

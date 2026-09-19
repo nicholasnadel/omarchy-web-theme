@@ -222,6 +222,32 @@ for (const [name, initial, kept, paths] of [
   });
 }
 
+test('installer loads the extension in Brave when a Brave profile exists', (t) => {
+  const { root, env } = temporaryEnvironment(t);
+  const extension = join(root, 'extension');
+  mkdirSync(extension);
+  writeFileSync(join(extension, 'manifest.json'), '{}');
+  const host = join(root, 'host-must-not-run');
+  writeFileSync(host, '#!/bin/sh\nexit 99\n', { mode: 0o700 });
+  mkdirSync(join(env.XDG_CONFIG_HOME, 'BraveSoftware/Brave-Browser'), { recursive: true });
+
+  const run = (uninstall = false) => execFileSync('/bin/bash', [join(project, 'install.sh'), ...(uninstall ? ['--uninstall'] : [])], {
+    cwd: root,
+    env: { ...env, OMARCHY_THEME_HOST_BIN: host, OMARCHY_THEME_EXTENSION_DIR: extension },
+    encoding: 'utf8',
+    timeout: 10000,
+  });
+
+  run();
+  assert.equal(readFileSync(join(env.XDG_CONFIG_HOME, 'brave-flags.conf'), 'utf8'), `--load-extension=${extension}\n`);
+  assert.equal(readFileSync(join(env.XDG_CONFIG_HOME, 'chromium-flags.conf'), 'utf8'), `--load-extension=${extension}\n`);
+  assert.equal(existsSync(join(env.XDG_CONFIG_HOME, 'BraveSoftware/Brave-Browser/NativeMessagingHosts/com.omarchy.theme.json')), true);
+
+  run(true);
+  assert.equal(readFileSync(join(env.XDG_CONFIG_HOME, 'brave-flags.conf'), 'utf8'), '');
+  assert.equal(existsSync(join(env.XDG_CONFIG_HOME, 'BraveSoftware/Brave-Browser/NativeMessagingHosts/com.omarchy.theme.json')), false);
+});
+
 const chromium = ['chromium', 'chromium-browser', 'google-chrome'].flatMap((name) =>
   (process.env.PATH || '').split(delimiter).map((directory) => join(directory, name))).find((file) => {
   try { accessSync(file, constants.X_OK); return true; } catch { return false; }

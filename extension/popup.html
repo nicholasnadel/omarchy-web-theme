@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Omarchy Web Theme</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main>
+      <header>
+        <img src="icon.png" alt="">
+        <div>
+          <h1>Omarchy Web Theme</h1>
+          <p id="theme">Connecting to Omarchy…</p>
+        </div>
+      </header>
+
+      <section>
+        <label class="setting">
+          <span><strong>Theme web pages</strong><small>Use the current Omarchy palette everywhere</small></span>
+          <input id="global" type="checkbox" role="switch">
+        </label>
+        <label class="setting" id="siteRow">
+          <span><strong>Theme this site</strong><small id="host">Current site</small></span>
+          <input id="site" type="checkbox" role="switch">
+        </label>
+      </section>
+
+      <p class="footnote">Images and video keep their original colors. Changes apply immediately.</p>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>

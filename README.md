@@ -1,30 +1,31 @@
-# Omarchy Theme Sync
+# Omarchy Web Theme
 
-Use your Omarchy desktop colors on the web.
+Make Chromium and Brave pages follow the active Omarchy theme.
 
-Omarchy Theme Sync is a Chromium extension that shares your current theme with
-websites through CSS variables and a small JavaScript API. Change your desktop
-theme, and pages that use these colors update without a reload.
+Omarchy Web Theme is a Chromium extension with a small local helper. It reads the
+active Omarchy `colors.toml`, maps ordinary page colors into that palette, and
+updates open tabs when the desktop theme changes. Images, video, canvas, SVG, and
+CSS background images keep their original colors.
 
-It does not automatically restyle every website. Each site chooses how to use
-the colors.
+The original opt-in CSS variables and JavaScript API remain available for sites
+that want exact control. Automatic theming is the fallback for everything else.
 
 ## Install
 
-You need an Omarchy desktop and Chromium. There is no build step and no npm
+You need an Omarchy desktop and Chromium or Brave. There is no build step and no npm
 install. The installer runs as your normal user, without `sudo`.
 
-1. Open Chromium at least once so its profile exists.
-2. Clone the project and run the installer:
+1. Open Chromium or Brave at least once so its profile exists.
+2. From this checkout, run the installer:
 
 ```bash
-git clone https://github.com/omacom/omarchy-theme-sync.git
-cd omarchy-theme-sync
+cd ~/Projects/omarchy-web-theme
 ./install.sh
 ```
 
-3. Fully quit and restart Chromium.
-4. Open `chrome://extensions` and check for **Omarchy Theme Sync**.
+3. Fully quit and restart the browser.
+4. Open `chrome://extensions` or `brave://extensions` and check for
+   **Omarchy Web Theme**.
 
 Keep the project folder in place. The browser loads the extension and its local
 helper directly from this folder.
@@ -33,10 +34,26 @@ The runtime needs Bash, jq, inotify-tools, util-linux, and GNU coreutils with
 `mv --no-copy` support. These tools are normally available on Omarchy. Python 3
 is only needed for the demo. Node.js 22 or newer is only needed for tests.
 
-Automatic setup uses Omarchy's Chromium launcher and `chromium-flags.conf`.
-The installer also registers the helper for other installed Chromium-based
-browsers, but you may need to load `extension/` manually in those browsers.
-Firefox is not supported yet.
+Automatic setup uses the Omarchy Chromium and Brave launchers and their flags
+files. The installer registers the native helper for other installed
+Chromium-based browsers too, but you may need to load `extension/` manually in
+those browsers. Firefox is not supported yet.
+
+## Controls
+
+Select the extension icon in the browser toolbar to:
+
+- turn automatic page theming on or off globally;
+- disable or re-enable it for the current hostname;
+- confirm which Omarchy palette is connected.
+
+The global switch and hostname exceptions are stored locally in the browser.
+They sync neither to websites nor to a cloud account.
+
+Automatic theming covers common backgrounds, text, links, borders, form
+controls, selection, focus rings, and scrollbars. Sites with unusual rendering
+can be excluded from the popup. Browser-owned pages such as `chrome://settings`
+cannot be changed by extensions.
 
 ## Use Colors in CSS
 
@@ -155,7 +172,8 @@ to **Apply existing** after installation or an existing-name error.
 ## Security and Privacy
 
 Every page where the extension runs can read your theme name and palette. Custom
-colors can help identify you across sites. There is no per-site read opt-in yet.
+colors can help identify you across sites. Disabling automatic styling for a
+hostname does not currently remove the opt-in CSS/JavaScript palette API.
 
 An allowed write origin can change your theme without a confirmation prompt.
 Only add origins you trust.
@@ -174,7 +192,7 @@ is required.
 
 | Path | Purpose |
 | --- | --- |
-| `extension/` | Chromium extension and page API |
+| `extension/` | Chromium extension, page theme engine, popup, and page API |
 | `bin/omarchy-browser-theme-host` | Local helper that reads and applies themes |
 | `demo/` | Live demo and example palettes |
 | `install.sh` | Browser registration and removal |
@@ -196,7 +214,9 @@ restarts the connection to the local helper. Reload any open test pages afterwar
 ## Troubleshooting
 
 - **The installer reports zero browser profiles:** Open Chromium once, then run `./install.sh` again.
-- **The extension is missing:** Fully quit and restart Chromium, then check `chrome://extensions`.
+- **The extension is missing:** Fully quit and restart Chromium or Brave, then
+  check its extensions page.
+- **A site looks wrong:** Use the extension popup to turn off **Theme this site**.
 - **The palette is empty:** Confirm Omarchy has an active theme, then reload the extension.
 - **Local demo buttons are disabled:** This is the default. Follow the exact-origin opt-in in [Try the Demo](#try-the-demo).
 - **You want to move the project folder:** Uninstall from the old location first. Move it, then run the installer from the new location.

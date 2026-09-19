@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Register Omarchy Theme Sync and its native messaging host.
+# Register Omarchy Web Theme and its native messaging host.
 #
 # Everything here is per-user and needs no root: the host manifest lives in each
 # browser's profile config, and the extension is loaded unpacked through
@@ -18,7 +18,11 @@ HOST_NAME="com.omarchy.theme"
 # not $HOME/.config, so a user who moves XDG_CONFIG_HOME would otherwise get the
 # flag written somewhere the launcher never reads.
 CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
-FLAGS_FILE="$CONFIG_HOME/chromium-flags.conf"
+FLAGS_FILES=("$CONFIG_HOME/chromium-flags.conf")
+
+# Chromium and Brave's Arch launchers each read their own flags file. Register
+# Brave when its real profile exists; do not create phantom browser profiles.
+[[ -d $CONFIG_HOME/BraveSoftware/Brave-Browser ]] && FLAGS_FILES+=("$CONFIG_HOME/brave-flags.conf")
 
 # The id is derived from the manifest's "key", so it is identical for the
 # unpacked dev load and any future packed build. The native host refuses
@@ -68,7 +72,7 @@ install_hosts() {
       --arg path "$HOST_BIN" \
       --arg origin "chrome-extension://$EXTENSION_ID/" \
       '{name: $name,
-        description: "Omarchy Theme Sync native host",
+        description: "Omarchy Web Theme native host",
         path: $path,
         type: "stdio",
         allowed_origins: [$origin]}' >"$manifest"
@@ -87,12 +91,13 @@ install_hosts() {
 # last occurrence of the flag, so this edits the existing list in place rather
 # than appending a second flag line.
 update_flags() {
+  local flags_file=$1
   local line paths=() kept=() joined found=0
 
-  [[ -f $FLAGS_FILE ]] || {
+  [[ -f $flags_file ]] || {
     (( uninstall )) && return 0
-    mkdir -p "$(dirname "$FLAGS_FILE")"
-    : >"$FLAGS_FILE"
+    mkdir -p "$(dirname "$flags_file")"
+    : >"$flags_file"
   }
 
   while IFS= read -r line || [[ -n $line ]]; do
@@ -102,7 +107,7 @@ update_flags() {
       continue
     fi
     kept+=("$line")
-  done <"$FLAGS_FILE"
+  done <"$flags_file"
 
   local rebuilt=()
   local path
@@ -119,16 +124,16 @@ update_flags() {
       joined=$(IFS=','; echo "${rebuilt[*]}")
       printf -- '--load-extension=%s\n' "$joined"
     fi
-  } >"$FLAGS_FILE.tmp"
+  } >"$flags_file.tmp"
 
-  mv "$FLAGS_FILE.tmp" "$FLAGS_FILE"
+  mv "$flags_file.tmp" "$flags_file"
 
   if (( uninstall )); then
-    echo "Removed $EXTENSION_DIR from $FLAGS_FILE"
+    echo "Removed $EXTENSION_DIR from $flags_file"
   elif (( found )); then
-    echo "Updated --load-extension in $FLAGS_FILE"
+    echo "Updated --load-extension in $flags_file"
   else
-    echo "Added --load-extension to $FLAGS_FILE"
+    echo "Added --load-extension to $flags_file"
   fi
 }
 
@@ -136,12 +141,14 @@ update_flags() {
 [[ -f $EXTENSION_DIR/manifest.json ]] || { echo "install.sh: no manifest at $EXTENSION_DIR" >&2; exit 1; }
 
 install_hosts
-update_flags
+for flags_file in "${FLAGS_FILES[@]}"; do
+  update_flags "$flags_file"
+done
 
 echo
 if (( uninstall )); then
   echo "Done. Restart your browser."
 else
-  echo "Done. Restart your browser, then check chrome://extensions for \"Omarchy Theme Sync\"."
+  echo "Done. Restart your browser, then check chrome://extensions for \"Omarchy Web Theme\"."
   echo "Extension id: $EXTENSION_ID"
 fi

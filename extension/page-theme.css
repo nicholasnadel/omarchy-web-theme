@@ -1,0 +1,47 @@
+html[data-omarchy-page-theme="dark"] { color-scheme: dark !important; }
+html[data-omarchy-page-theme="light"] { color-scheme: light !important; }
+
+html[data-omarchy-page-theme] {
+  background-color: var(--omarchy-background) !important;
+  color: var(--omarchy-foreground) !important;
+  scrollbar-color: var(--omarchy-muted, var(--omarchy-light-foreground)) var(--omarchy-background);
+}
+
+html[data-omarchy-page-theme] [data-omarchy-auto-bg] {
+  background-color: var(--omarchy-auto-bg) !important;
+}
+
+html[data-omarchy-page-theme] [data-omarchy-auto-fg] {
+  color: var(--omarchy-auto-fg) !important;
+}
+
+html[data-omarchy-page-theme] [data-omarchy-auto-border] {
+  border-color: var(--omarchy-auto-border) !important;
+  outline-color: var(--omarchy-auto-border) !important;
+  text-decoration-color: var(--omarchy-auto-border) !important;
+}
+
+html[data-omarchy-page-theme] :where(a, a:visited) {
+  color: var(--omarchy-accent) !important;
+}
+
+html[data-omarchy-page-theme] :where(input, textarea, select, button) {
+  accent-color: var(--omarchy-accent) !important;
+}
+
+html[data-omarchy-page-theme] ::selection {
+  background: var(--omarchy-selection, var(--omarchy-accent)) !important;
+  color: var(--omarchy-foreground) !important;
+}
+
+html[data-omarchy-page-theme] :focus-visible {
+  outline-color: var(--omarchy-accent) !important;
+}
+
+@media print {
+  html[data-omarchy-page-theme],
+  html[data-omarchy-page-theme] body {
+    background: white !important;
+    color: black !important;
+  }
+}
