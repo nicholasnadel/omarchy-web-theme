@@ -16,10 +16,11 @@ You need an Omarchy desktop and Chromium or Brave. There is no build step and no
 install. The installer runs as your normal user, without `sudo`.
 
 1. Open Chromium or Brave at least once so its profile exists.
-2. From this checkout, run the installer:
+2. Clone the project and run the installer:
 
 ```bash
-cd ~/Projects/omarchy-web-theme
+git clone https://github.com/nicholasnadel/omarchy-web-theme.git
+cd omarchy-web-theme
 ./install.sh
 ```
 
@@ -236,6 +237,10 @@ previously installed or the helper's rate-limit state.
 
 [MIT](LICENSE). Externally hosted wallpapers are not covered by this license;
 check the rights for those images before reusing them.
+
+Omarchy Web Theme builds on
+[Omarchy Theme Sync](https://github.com/omacom/omarchy-theme-sync) by Bjarne
+Oeverli. Its original MIT copyright notice is preserved in this repository.
 
 The extension icon uses the square logo from the
 [official Omarchy brand assets](https://omarchy.org/brand). The logo is not covered
