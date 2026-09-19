@@ -275,6 +275,7 @@ test('automatic theming yields to dense app hydration until page load', {
 <html style="--omarchy-background:#111c18;--omarchy-dark-background:#0c1512;--omarchy-darker-background:#090f0d;--omarchy-lighter-background:#23372b;--omarchy-foreground:#c1c497;--omarchy-accent:#509475" data-omarchy-mode="dark">
 <head><meta charset="utf-8"><style>html,body{background:#212121;color:#eee}</style>
 <script>globalThis.chrome={storage:{local:{get:()=>Promise.resolve({pageThemeEnabled:true,disabledHosts:[]})},onChanged:{addListener(){}}}};</script>
+<script>new MutationObserver(()=>{const rows=[...document.querySelectorAll('#app>div')];if(document.documentElement.hasAttribute('data-omarchy-page-theme'))document.documentElement.dataset.activation=rows.length===3000&&rows.every(node=>node.hasAttribute('data-omarchy-auto-fg'))?'atomic':'progressive'}).observe(document.documentElement,{attributes:true,attributeFilter:['data-omarchy-page-theme']});</script>
 <script src="${utilsUrl}"></script><script src="${themeUrl}"></script></head>
 <body><main id="app"></main><script>
 const app=document.getElementById('app');
@@ -293,6 +294,8 @@ window.addEventListener('load',()=>setTimeout(()=>{document.documentElement.data
   const htmlTag = result.stdout.match(/<html\b[^>]*>/)?.[0] || '';
   assert.match(htmlTag, /data-hydration="completed-before-theme"/);
   assert.match(htmlTag, /data-theme-state="dark"/);
+  assert.match(htmlTag, /data-activation="atomic"/);
+  assert.doesNotMatch(htmlTag, /data-omarchy-theme-activating=/);
 });
 
 test('Chromium keeps palette and gallery payloads inert through unchanged DOM helpers', {

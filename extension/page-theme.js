@@ -6,6 +6,7 @@
   if (!utils) return;
 
   const ROOT_ATTRIBUTE = 'data-omarchy-page-theme';
+  const ACTIVATING_ATTRIBUTE = 'data-omarchy-theme-activating';
   const AUTO_PROPERTIES = ['--omarchy-auto-bg', '--omarchy-auto-fg', '--omarchy-auto-border'];
   const SKIP_SELECTOR = [
     'img', 'picture', 'video', 'canvas', 'svg', 'iframe', 'object', 'embed',
@@ -75,12 +76,13 @@
     mutationFlushScheduled = false;
     pendingRoots.clear();
     document.documentElement?.removeAttribute(ROOT_ATTRIBUTE);
+    document.documentElement?.removeAttribute(ACTIVATING_ATTRIBUTE);
     for (const element of document.querySelectorAll('[data-omarchy-auto-bg], [data-omarchy-auto-fg], [data-omarchy-auto-border]')) {
       clearElement(element);
     }
   }
 
-  function themeElement(element) {
+  function readElementTheme(element) {
     if (!(element instanceof Element) || element.matches(SKIP_SELECTOR) || element.closest('[data-omarchy-ignore]')) return;
     const style = getComputedStyle(element);
     const backgroundImage = style.backgroundImage;
@@ -100,6 +102,10 @@
       .find((color) => utils.parseColor(color)?.a > 0.08);
     const border = borderSource ? utils.transformBorder(borderSource, palette) : null;
 
+    return { element, background, foreground, border, hasBorder: style.borderStyle !== 'none' };
+  }
+
+  function writeElementTheme({ element, background, foreground, border, hasBorder }) {
     if (background) {
       element.style.setProperty('--omarchy-auto-bg', background);
       element.setAttribute('data-omarchy-auto-bg', '');
@@ -111,7 +117,7 @@
       element.style.setProperty('--omarchy-auto-fg', foreground);
       element.setAttribute('data-omarchy-auto-fg', '');
     }
-    if (border && style.borderStyle !== 'none') {
+    if (border && hasBorder) {
       element.style.setProperty('--omarchy-auto-border', border);
       element.setAttribute('data-omarchy-auto-border', '');
     } else {
@@ -127,20 +133,27 @@
     return [root, ...root.querySelectorAll('*')].reverse();
   }
 
-  function process(elements, run) {
+  function process(elements, run, onComplete) {
     let index = 0;
     const slice = (deadline) => {
       if (run !== generation || !isEnabled()) return;
       const started = performance.now();
+      const updates = [];
       while (index < elements.length) {
-        themeElement(elements[index++]);
+        const update = readElementTheme(elements[index++]);
+        if (update) updates.push(update);
         const outOfIdleTime = deadline && deadline.timeRemaining() < 1;
         if (outOfIdleTime || (!deadline && performance.now() - started > 8)) break;
       }
+      // Keep computed-style reads and DOM writes in separate phases. Mixing
+      // them element-by-element forces repeated style recalculation and makes
+      // large pages visibly hitch.
+      for (const update of updates) writeElementTheme(update);
       if (index < elements.length) schedule(slice);
+      else onComplete?.();
     };
-    // Do one bounded pass now so the initial viewport is themed before first
-    // paint even on busy apps where idle callbacks are delayed indefinitely.
+    // Begin one bounded preparation pass immediately. Generated values stay
+    // visually inert until the caller atomically enables ROOT_ATTRIBUTE.
     slice(null);
   }
 
@@ -192,6 +205,7 @@
     mutationFlushScheduled = false;
     pendingRoots.clear();
     document.documentElement.removeAttribute(ROOT_ATTRIBUTE);
+    document.documentElement.removeAttribute(ACTIVATING_ATTRIBUTE);
     for (const element of document.querySelectorAll('[data-omarchy-auto-bg], [data-omarchy-auto-fg], [data-omarchy-auto-border]')) {
       clearElement(element);
     }
@@ -201,8 +215,18 @@
     sourceBackgroundLuminance = sourceAppearance.backgroundLuminance;
     generation++;
     const run = generation;
-    document.documentElement.setAttribute(ROOT_ATTRIBUTE, palette.mode);
-    process(collect(document.documentElement), run);
+    process(collect(document.documentElement), run, () => {
+      if (run !== generation || !isEnabled()) return;
+      const root = document.documentElement;
+      // The generated attributes and variables are inert until ROOT_ATTRIBUTE
+      // exists. Activate the fully prepared page at once, without inheriting
+      // site transitions that would otherwise stagger the visual update.
+      root.setAttribute(ACTIVATING_ATTRIBUTE, '');
+      root.setAttribute(ROOT_ATTRIBUTE, palette.mode);
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        if (run === generation) root.removeAttribute(ACTIVATING_ATTRIBUTE);
+      }));
+    });
 
     observer = new MutationObserver((mutations) => queueMutations(mutations, run));
     observer.observe(document.documentElement, { childList: true, subtree: true });

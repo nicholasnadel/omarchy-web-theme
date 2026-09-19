@@ -1,6 +1,13 @@
 html[data-omarchy-page-theme="dark"] { color-scheme: dark !important; }
 html[data-omarchy-page-theme="light"] { color-scheme: light !important; }
 
+html[data-omarchy-theme-activating],
+html[data-omarchy-theme-activating] * {
+  transition-property: none !important;
+  transition-duration: 0s !important;
+  transition-delay: 0s !important;
+}
+
 html[data-omarchy-page-theme] {
   background-color: var(--omarchy-background) !important;
   color: var(--omarchy-foreground) !important;
